@@ -1,13 +1,23 @@
 package com.example.androidsample;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.recyclerview.widget.ListAdapter;
 
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
+import android.widget.Button;
 import android.widget.EditText;
+import android.widget.Spinner;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
@@ -20,53 +30,29 @@ import retrofit2.converter.gson.GsonConverterFactory;
 public class MainActivity extends AppCompatActivity {
 
     private TextView textViewResult;
-
+    private Button button;
+    private ArrayList<String> exchangeRates;
+    Map<String, Double> conversionRates;
     private String url = "https://v6.exchangerate-api.com/v6/" + ApiKeys.getExchangeRateKey() + "/latest/";
+
+
+
     public MainActivity() throws IOException {
     }
-
-    /*private static class HTTPReqTask extends AsyncTask<Void, Void, Void> {
-        @Override
-        protected Void doInBackground(Void... params) {
-            HttpURLConnection urlConnection = null;
-
-            try {
-                URL url = new URL("https://v6.exchangerate-api.com/v6/dcf307f391433e5e3fd1aab9/latest/USD");
-                urlConnection = (HttpURLConnection) url.openConnection();
-
-                int code = urlConnection.getResponseCode();
-                if (code !=  200) {
-                    throw new IOException("Invalid response from server: " + code);
-                }
-
-                BufferedReader rd = new BufferedReader(new InputStreamReader(
-                        urlConnection.getInputStream()));
-                String line;
-                while ((line = rd.readLine()) != null) {
-                    Log.i("data", line);
-                }
-            } catch (Exception e) {
-                e.printStackTrace();
-            } finally {
-                if (urlConnection != null) {
-                    urlConnection.disconnect();
-                }
-            }
-
-            return null;
-        }
-    }*/
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        TextView textViewResult = findViewById(R.id.textView);
-
-        //new HTTPReqTask().execute();
-
-
+        TextView textViewResult = findViewById(R.id.textViewResult);
+        Button button = (Button) findViewById(R.id.button);
+        button.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v){
+                //Log.d("BUTTONS", "User tapped the Button");
+                convertCurrency(v);
+            }
+        });
 
         Retrofit retrofit = new Retrofit.Builder()
                 .baseUrl("https://v6.exchangerate-api.com/v6/dcf307f391433e5e3fd1aab9/latest/")
@@ -84,11 +70,31 @@ public class MainActivity extends AppCompatActivity {
                     return;
                 }
 
-                Map<String, Double> conversionRates;
-                ExchangeRateResponse posts = response.body();
-                conversionRates = posts.getConversionRates();
-                double usdExchangeRate = conversionRates.get("EUR");
-                textViewResult.setText("USD Conversion Rate: " + usdExchangeRate);
+                // if successful
+                ExchangeRateResponse exchangeRateResponse = response.body();
+                conversionRates = exchangeRateResponse.getConversionRates();
+
+                exchangeRates = new ArrayList<String>(conversionRates.keySet());
+
+                Spinner spinnerLeft = findViewById(R.id.spinner_currency_left);
+                Spinner spinnerRight = findViewById(R.id.spinner_currency_right);
+
+                ArrayAdapter<String> adapter = new ArrayAdapter<>(MainActivity.this,
+                        android.R.layout.simple_spinner_dropdown_item, exchangeRates);
+                spinnerLeft.setAdapter(adapter);
+                spinnerRight.setAdapter(adapter);
+                spinnerLeft.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+                    @Override
+                    public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                        String itemValue = parent.getItemAtPosition(position).toString();
+                        Toast.makeText(parent.getContext(), itemValue, Toast.LENGTH_SHORT).show();
+                    }
+
+                    @Override
+                    public void onNothingSelected(AdapterView<?> parent) {
+
+                    }
+                });
             }
 
             @Override
@@ -98,49 +104,26 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    /*public static void getExchangeRate() throws Exception{
-        URL url = new URL("https://v6.exchangerate-api.com/v6/dcf307f391433e5e3fd1aab9/latest/USD");
-        HttpURLConnection con = (HttpURLConnection) url.openConnection();
-        con.setRequestMethod("GET"); //optional as GET is standard
-        con.setRequestProperty("User-Agent", "MyApp/1.0");
-        int responseCode = con.getResponseCode();
-        System.out.println("GET Response Code : " + responseCode);
-
-        if (responseCode == HttpURLConnection.HTTP_OK) {
-            BufferedReader in = new BufferedReader(
-                    new InputStreamReader(con.getInputStream())
-            );
-            String inputLine;
-            StringBuffer response = new StringBuffer();
-            while ((inputLine = in.readLine()) != null) {
-                response.append(inputLine);
-            }
-            in.close();
-
-            System.out.println(response.toString());
-        } else {
-            System.out.println("GET request did not work");
-        }
-
-    }*/
-
 
     public void convertCurrency(View view) {
-        EditText dollarText = findViewById(R.id.dollarText);
+        EditText inputText = findViewById(R.id.inputText);
+        TextView textViewResult = findViewById(R.id.textViewResult);
 
+        if (!inputText.getText().toString().equals("")){
+            Spinner spinnerLeft = findViewById(R.id.spinner_currency_left);
+            Spinner spinnerRight = findViewById(R.id.spinner_currency_right);
 
-        /*try {
-            getExchangeRate();
-        } catch (Exception ex) {
-            throw new RuntimeException(ex);
-        }*/
+            float baseValue = Float.parseFloat(inputText.getText().toString()); //value to convert
 
+            String baseCurrency = spinnerLeft.getSelectedItem().toString();
+            String targetCurrency = spinnerRight.getSelectedItem().toString();
 
+            float baseExchangeRate = conversionRates.get(baseCurrency).floatValue();
+            float targetExchangeRate = conversionRates.get(targetCurrency).floatValue();
 
-        if (!dollarText.getText().toString().equals("")){
-            float dollarValue = Float.parseFloat(dollarText.getText().toString());
-            float euroValue = dollarValue * 0.85F;
-            textViewResult.setText(String.format(Locale.ENGLISH,"%.2f", euroValue));
+            float targetValue = (baseValue/baseExchangeRate)*targetExchangeRate;
+
+            textViewResult.setText(String.format(Locale.ENGLISH,"%.2f", targetValue));
         } else {
             textViewResult.setText(R.string.no_value_string);
         }
